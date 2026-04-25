@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Cambia esta IP por la IP pública de tu VM1
-const VM1 = "http://3.94.197.147";
+const VM1 = "http://34.204.43.13";
 
 const api = {
   // MS Usuarios - método 1
