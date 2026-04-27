@@ -1,22 +1,33 @@
 import axios from "axios";
 
-// Cambia esta IP por la IP pública de tu VM1
-const VM1 = "http://34.204.43.13";
+const VM1 = "http://localhost";
 
 const api = {
-  // MS Usuarios - método 1
+  // Auth
+  login: (email, password) =>
+    axios.post(`${VM1}:8001/api/users/login`, { email, password }),
+
+  register: (username, email, password) =>
+    axios.post(`${VM1}:8001/api/users/register`, { username, email, password }),
+
+  // MS Usuarios
   getUsuarios: (page = 0) =>
     axios.get(`${VM1}:8001/api/users/?skip=${page * 20}&limit=20`),
 
-  // MS Usuarios - método 2
+  getUsuario: (id) =>
+    axios.get(`${VM1}:8001/api/users/${id}`),
+
   getUsuariosPorPais: () =>
     axios.get(`${VM1}:8001/api/users/stats/by-country`),
 
-  // MS Juegos - método 1
-  getJuegos: (page = 1) =>
-    axios.get(`${VM1}:8002/api/games?page=${page}&limit=20`),
+  // MS Juegos
+  getJuegos: (page = 1, genre = null, sort = null, order = "desc") => {
+    let url = `${VM1}:8002/api/games?page=${page}&limit=20`;
+    if (genre) url += `&genre=${encodeURIComponent(genre)}`;
+    if (sort)  url += `&sort=${sort}&order=${order}`;
+    return axios.get(url);
+  },
 
-  // MS Juegos - método 2
   getGeneros: () =>
     axios.get(`${VM1}:8002/api/games/stats/genres`),
 };
