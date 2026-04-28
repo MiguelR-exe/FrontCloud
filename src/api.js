@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const VM1 = "http://localhost";
+const VM1 = "http://100.31.1.41";
 
 const api = {
   // Auth
