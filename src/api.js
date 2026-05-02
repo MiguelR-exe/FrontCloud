@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const VM1 = "http://100.31.1.41";
+const VM1 = "https://jlk0q2urme.execute-api.us-east-1.amazonaws.com/prod";
 
 const api = {
   // Auth
