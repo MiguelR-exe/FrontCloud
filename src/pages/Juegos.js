@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api";
 
 const GENRE_COLORS = {
@@ -11,13 +12,38 @@ const GENRE_COLORS = {
   Puzzle:          "#06b6d4",
 };
 
-const TROPHY_COLOR = ["#f59e0b", "#94a3b8", "#cd7c3d"];
-const TROPHY = ["🥇", "🥈", "🥉"];
-
 function gc(genre) { return GENRE_COLORS[genre] || "#6b7280"; }
 
-function DetalleJuego({ juego, onBack }) {
+function fmtDuration(secs) {
+  if (!secs) return "—";
+  const m = Math.floor(secs / 60), s = secs % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+function fmtDate(dt) {
+  if (!dt) return "—";
+  return new Date(dt).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function DetalleJuego({ juego, onBack }) {
+  const [sessions, setSessions] = useState([]);
+
+  useEffect(() => {
+    api.getPartidasJuego(juego._id)
+      .then((r) => setSessions(r.data))
+      .catch(() => {});
+  }, [juego._id]);
+
   const stars = juego.metadata?.rating ? Math.round(juego.metadata.rating) : 0;
+
+  // Agrupa sesiones por userId para mostrar top jugadores
+  const playerMap = {};
+  sessions.forEach((sess) => {
+    const id = sess.userId;
+    if (!playerMap[id]) playerMap[id] = { userId: id, totalScore: 0, partidas: 0 };
+    playerMap[id].totalScore += sess.score || 0;
+    playerMap[id].partidas += 1;
+  });
+  const topJugadores = Object.values(playerMap).sort((a, b) => b.totalScore - a.totalScore);
 
   return (
     <div>
@@ -30,34 +56,28 @@ function DetalleJuego({ juego, onBack }) {
         <div style={s.detalleInfo}>
           <h2 style={s.detalleTitulo}>{juego.title}</h2>
           <div style={s.detalleMeta}>
-            <span style={{ ...s.badge, background: `${gc(juego.genre)}22`, color: gc(juego.genre) }}>
-              {juego.genre}
-            </span>
+            <span style={{ ...s.badge, background: `${gc(juego.genre)}22`, color: gc(juego.genre) }}>{juego.genre}</span>
             <span style={s.badgeGray}>{juego.platform}</span>
-            {juego.metadata?.release_year && (
-              <span style={s.badgeGray}>{juego.metadata.release_year}</span>
-            )}
+            {juego.metadata?.release_year && <span style={s.badgeGray}>{juego.metadata.release_year}</span>}
           </div>
         </div>
       </div>
 
       <div style={s.statsGrid}>
         <div style={s.statCard}>
-          <p style={s.statVal}>
-            {"⭐".repeat(stars)}{"☆".repeat(5 - stars)}
-          </p>
+          <p style={s.statVal}>{"⭐".repeat(stars)}{"☆".repeat(5 - stars)}</p>
           <p style={s.statLabel}>Rating</p>
           <p style={{ color: "#f59e0b", fontSize: "1rem", marginTop: 4 }}>
             {juego.metadata?.rating ? Number(juego.metadata.rating).toFixed(1) : "—"} / 5
           </p>
         </div>
         <div style={s.statCard}>
-          <p style={s.statVal}>{juego.platform}</p>
+          <p style={s.statVal}>{juego.platform || "—"}</p>
           <p style={s.statLabel}>Plataforma</p>
         </div>
         <div style={s.statCard}>
-          <p style={s.statVal}>{juego.metadata?.release_year || "—"}</p>
-          <p style={s.statLabel}>Año de lanzamiento</p>
+          <p style={s.statVal}>{sessions.length.toLocaleString()}</p>
+          <p style={s.statLabel}>Partidas jugadas</p>
         </div>
       </div>
 
@@ -72,23 +92,52 @@ function DetalleJuego({ juego, onBack }) {
         <div style={s.infoCard}>
           <p style={s.infoLabel}>Tags</p>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-            {juego.tags.map((t, i) => (
-              <span key={i} style={s.tag}>{t}</span>
-            ))}
+            {juego.tags.map((t, i) => <span key={i} style={s.tag}>{t}</span>)}
           </div>
         </div>
       )}
+
+      {/* Tabla de jugadores */}
+      <div style={s.sesionesWrap}>
+        <div style={s.sesionesHeader}>
+          <span style={s.sesionesTitle}>Jugadores</span>
+          <span style={s.sesionesSub}> — {topJugadores.length} jugadores · {sessions.length} sesiones</span>
+        </div>
+        {topJugadores.length === 0 ? (
+          <p style={s.empty}>Sin sesiones registradas.</p>
+        ) : (
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {["#", "Usuario ID", "Partidas", "Score total"].map((h) => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {topJugadores.map((p, i) => (
+                <tr key={p.userId} style={s.tr}>
+                  <td style={{ ...s.td, color: "#3a4060" }}>{i + 1}</td>
+                  <td style={{ ...s.td, color: "#e8eaf0", fontWeight: 600 }}>#{p.userId}</td>
+                  <td style={{ ...s.td, color: "#94a3b8" }}>{p.partidas}</td>
+                  <td style={{ ...s.td, color: "#f97316", fontWeight: 700 }}>{p.totalScore.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function Juegos() {
+  const navigate = useNavigate();
   const [juegos, setJuegos] = useState([]);
   const [generos, setGeneros] = useState([]);
   const [pagina, setPagina] = useState(1);
   const [filtroGenero, setFiltroGenero] = useState(null);
   const [sortVal, setSortVal] = useState("");
-  const [selectedJuego, setSelectedJuego] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -104,11 +153,7 @@ export default function Juegos() {
       .catch(() => setError("No se pudo conectar al microservicio de Juegos"));
   }, [pagina, filtroGenero, sortVal]);
 
-  if (selectedJuego) return <DetalleJuego juego={selectedJuego} onBack={() => setSelectedJuego(null)} />;
   if (error) return <p style={s.error}>❌ {error}</p>;
-
-  const top3 = generos.slice(0, 3);
-  const maxCount = generos[0]?.count || 1;
 
   const handleFiltro = (genero) => {
     setFiltroGenero(genero === filtroGenero ? null : genero);
@@ -122,20 +167,6 @@ export default function Juegos() {
 
   return (
     <div>
-      <div style={s.podio}>
-        {top3.map((g, i) => (
-          <div key={g._id} style={{ ...s.podioCard, borderTop: `3px solid ${TROPHY_COLOR[i]}` }}>
-            <div style={{ ...s.genreIcon, background: `${gc(g._id)}22`, color: gc(g._id) }}>{g._id[0]}</div>
-            <div style={s.podioTrophy}>{TROPHY[i]}</div>
-            <div style={s.podioName}>{g._id}</div>
-            <div style={s.podioCount}>{g.count.toLocaleString()} juegos</div>
-            <div style={s.barWrap}>
-              <div style={{ ...s.bar, width: `${(g.count / maxCount) * 100}%`, background: gc(g._id) }} />
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div style={s.filtrosRow}>
         <div style={s.filtros}>
           <button style={filtroGenero === null ? s.filtroBtnActive : s.filtroBtn} onClick={() => handleFiltro(null)}>
@@ -175,7 +206,7 @@ export default function Juegos() {
           </thead>
           <tbody>
             {juegos.map((g, i) => (
-              <tr key={g._id} style={{ ...s.tr, cursor: "pointer" }} onClick={() => setSelectedJuego(g)}>
+              <tr key={g._id} style={{ ...s.tr, cursor: "pointer" }} onClick={() => navigate(`/juegos/${g._id}`)}>
                 <td style={{ ...s.td, color: "#3a4060", width: 40 }}>{(pagina - 1) * 20 + i + 1}</td>
                 <td style={{ ...s.td, fontWeight: 600, color: "#e8eaf0" }}>{g.title}</td>
                 <td style={s.td}>
@@ -262,22 +293,11 @@ const s = {
     background: "rgba(255,255,255,0.07)", color: "#94a3b8",
     padding: "3px 10px", borderRadius: 20, fontSize: "0.8rem",
   },
-  podio: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "1.25rem" },
-  podioCard: {
-    background: "#0f1829", borderRadius: 12, padding: "1.25rem 1.5rem",
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
-    border: "1px solid rgba(255,255,255,0.06)",
-  },
-  genreIcon: {
-    width: 52, height: 52, borderRadius: "50%",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontSize: "1.4rem", fontWeight: 700,
-  },
-  podioTrophy: { fontSize: "1.3rem" },
-  podioName: { fontWeight: 700, fontSize: "1rem", color: "#e8eaf0" },
-  podioCount: { fontSize: "0.8rem", color: "#7a82a8" },
-  barWrap: { width: "100%", background: "rgba(255,255,255,0.07)", borderRadius: 4, height: 6, marginTop: 4 },
-  bar: { height: 6, borderRadius: 4 },
+  sesionesWrap: { background: "#272c4a", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginTop: "1rem" },
+  sesionesHeader: { padding: "1rem 1.25rem", borderBottom: "1px solid #1c1f30" },
+  sesionesTitle: { fontWeight: 600, fontSize: "0.95rem", color: "#e8eaf0" },
+  sesionesSub: { fontSize: "0.8rem", color: "#5a6080" },
+  empty: { color: "#5a6080", padding: "1rem 1.25rem", fontSize: "0.88rem" },
   filtrosRow: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem",
