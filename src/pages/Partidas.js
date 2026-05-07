@@ -31,10 +31,10 @@ const GLOBAL_STYLE = `
 /* ── Formulario nueva partida ───────────────────────────────────── */
 function FormPartida({ juegos, userId, onCreated, onCancel }) {
   const [form, setForm] = useState({
-    gameId: juegos[0]?._id || "",
-    score: "", durationMinutes: "", durationSeconds: "",
-    level: "", difficulty: "MEDIUM", status: "COMPLETED",
-  });
+  gameId: juegos.length > 0 ? "1" : "",
+  score: "", durationMinutes: "", durationSeconds: "",
+  level: "", difficulty: "MEDIUM", status: "COMPLETED",
+});
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -46,13 +46,16 @@ function FormPartida({ juegos, userId, onCreated, onCancel }) {
     const now = new Date().toISOString().slice(0, 19);
     try {
       await api.crearPartida({
-        userId, gameId: form.gameId,
-        score: parseInt(form.score),
-        durationSeconds: durSecs,
-        level: parseInt(form.level) || 1,
-        difficulty: form.difficulty, status: form.status,
-        startTime: now, endTime: now, createdAt: now,
-      });
+      userId: Number(userId),
+      gameId: Number(form.gameId),
+      score: Number(form.score),
+      durationSeconds: durSecs,
+      level: Number(form.level) || 1,
+      difficulty: form.difficulty,
+      status: form.status,
+      startTime: now,
+      endTime: now,
+  });
       onCreated();
     } catch { setError("Error al registrar la partida"); }
     finally { setSaving(false); }
@@ -76,7 +79,7 @@ function FormPartida({ juegos, userId, onCreated, onCancel }) {
           <div style={{ ...s.formField, marginBottom: "1.25rem" }}>
             <label style={s.label}>Juego</label>
             <select style={s.input} value={form.gameId} onChange={(e) => set("gameId", e.target.value)} required>
-              {juegos.map((j) => <option key={j._id} value={j._id}>{j.title}</option>)}
+              {juegos.map((j, index) => (<option key={j._id} value={index + 1}>{j.title}</option>))}
             </select>
           </div>
           <FormFields form={form} set={set} />
