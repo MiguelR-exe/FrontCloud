@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_GW = "https://faly1kt58i.execute-api.us-east-1.amazonaws.com";
+const API_GW = "https://a7znf25hg1.execute-api.us-east-1.amazonaws.com";
 
 const MS_USUARIOS = process.env.REACT_APP_MS_USUARIOS || API_GW;
 const MS_JUEGOS   = process.env.REACT_APP_MS_JUEGOS   || API_GW;
